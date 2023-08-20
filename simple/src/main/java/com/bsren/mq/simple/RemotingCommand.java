@@ -170,6 +170,14 @@ public class RemotingCommand {
         return code;
     }
 
+    public CommandHeader getCustomHeader() {
+        return customHeader;
+    }
+
+    public void setCustomHeader(CommandHeader customHeader) {
+        this.customHeader = customHeader;
+    }
+
     @Override
     public String toString() {
         return "RemotingCommand{" +

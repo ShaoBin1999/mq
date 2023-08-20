@@ -40,13 +40,7 @@ public class Server {
                         ChannelPipeline pipeline = ch.pipeline();
                         pipeline.addLast(new NettyEncoder());
                         pipeline.addLast(new NettyDecoder());
-                        pipeline.addLast(new ChannelInboundHandlerAdapter(){
-                            @Override
-                            public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-                                System.out.println(msg);
-                            }
-                        });
-//                        pipeline.addLast(new NettyHandler());
+                        pipeline.addLast(new NettyHandler());
                     }
                 }).bind(PORT);
     }
@@ -54,17 +48,38 @@ public class Server {
     class NettyHandler extends ChannelInboundHandlerAdapter {
         @Override
         public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-            System.out.println(msg);
-            if(msg instanceof Message){
+            if(msg instanceof RemotingCommand){
                 int i = atomicInteger.incrementAndGet();
-                msgs.put(i, (Message) msg);
-            }else if(msg instanceof PullMessageRequestHeader){
-                Iterator<Map.Entry<Integer, Message>> iterator = msgs.entrySet().iterator();
-                while (iterator.hasNext()){
-                    Map.Entry<Integer, Message> next = iterator.next();
-                    ctx.writeAndFlush(next.getValue());
-                    iterator.remove();
+                int code = ((RemotingCommand) msg).getCode();
+                switch (code){
+                    case RequestCode.SEND_MESSAGE:
+                        CommandHeader header = ((RemotingCommand) msg).decodeCommandHeader(SendMessageRequestHeader.class);
+                        byte[] body = ((RemotingCommand) msg).getBody();
+                        Message message = new Message();
+                        message.setBody(body);
+                        msgs.put(i,message);
+                        break;
+                    case RequestCode.PULL_MESSAGE:
+                        header = ((RemotingCommand) msg).decodeCommandHeader(PullMessageRequestHeader.class);
+                        processPullMessage(ctx);
+                        break;
+                    default:
+                        break;
                 }
+            }
+        }
+
+        private void processPullMessage(ChannelHandlerContext ctx) {
+            Iterator<Map.Entry<Integer, Message>> iterator = msgs.entrySet().iterator();
+            while (iterator.hasNext()){
+                Map.Entry<Integer, Message> entry = iterator.next();
+                Message message = entry.getValue();
+                RemotingCommand remotingCommand = new RemotingCommand();
+                remotingCommand.setBody(message.getBody());
+                PullMessageResponseHeader responseHeader = new PullMessageResponseHeader();
+                remotingCommand.setCustomHeader(responseHeader);
+                ctx.writeAndFlush(remotingCommand);
+                iterator.remove();
             }
         }
     }

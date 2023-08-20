@@ -34,15 +34,16 @@ public class Client {
         Channel channel = sync.channel();
         for (int i=0;i<100;i++){
             RemotingCommand remotingCommand = new RemotingCommand();
-            remotingCommand.setCode(i);
+            remotingCommand.setCode(RequestCode.SEND_MESSAGE);
             byte[] bytes = new byte[10];
             bytes[0] = (byte) i;
             remotingCommand.setBody(bytes);
+            int finalI = i;
             channel.writeAndFlush(remotingCommand).addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture channelFuture) throws Exception {
                     if(channelFuture.isSuccess()){
-                        System.out.println("message send success");
+                        System.out.println("第"+ finalI +"message send success");
                     }
                 }
             });
